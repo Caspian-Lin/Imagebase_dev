@@ -1,0 +1,16 @@
+{
+    "defaultbase":"database1",
+    "base_content":["database1","database2"],
+    "database1" : {
+        "baseName":"testdatabase",
+        "dir":"C:/Users/Caspi/OneDrive - Xi'an Jiaotong-Liverpool University/Lab/Imagebase_dev/testdatabase.db",
+        "lastchangetime" :"20240520",
+        "establishtime" :""
+    },
+    "database2" : {
+        "baseName":"testdatabase",
+        "dir":"C:/Users/28491/OneDrive - Xi'an Jiaotong-Liverpool University/Lab/Imagebase_dev/testdatabase.db",
+        "lastchangetime" :"",
+        "establishtime" :""
+    }
+}
