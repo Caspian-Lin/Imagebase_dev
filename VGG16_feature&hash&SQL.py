@@ -20,14 +20,14 @@ def SSMI(img1, img2): #
     ssmi = img1+img2
     return ssmi
 
-testfilepath="testimg/illust_114543923_20240106_005217.jpg"
+testfilepath="C:/Users/28491/OneDrive - Xi'an Jiaotong-Liverpool University/Lab/Imagebase_dev/testimg\\illust_114543923_20240106_005217.jpg"
 
 # 加载图像并进行预处理 
 img_path = testfilepath
 if get_file_extension(img_path)[-1] not in [".jpg",".png"]:
     print("文件类型不受支持，程序终止")
     sys.exit()
-filename = img_path.split('/')[-1]
+filename = img_path.split('\\')[-1]
 # 算哈希
 md5_value = compute_md5(img_path)
 print(f"MD5 hash of {filename}: {md5_value}")
