@@ -1,9 +1,11 @@
 from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QPixmap
-import sys, json, sqlite3, os
+import sys, json, sqlite3, os, hashlib
 from PIL import ImageGrab
-from PyQt5.QtWidgets import QWidget
+from keras.applications.vgg16 import VGG16, preprocess_input
+from keras.preprocessing import image
+import numpy as np
 
 class baseUI(QMainWindow):
     def __init__(self):
@@ -203,7 +205,7 @@ class ImagebaseMain(QMainWindow):
         self.button_baseRefresh = QPushButton(self)
         self.button_baseRefresh.setText("刷新库")
         self.button_baseRefresh.adjustSize()
-        self.button_baseRefresh.clicked.connect(self.baseRefresh)
+        self.button_baseRefresh.clicked.connect(self.basedirRefresh)
 
     def filetree_view(self):
         model = QFileSystemModel()
@@ -214,7 +216,6 @@ class ImagebaseMain(QMainWindow):
 
     def img_propertyview(self):
         self.img_propertyList = QTableWidget(1,1)
-
         for row in range(1):
             for col in range(1):
                 item = QTableWidgetItem(str(self.imgquery[row][col]))
@@ -229,8 +230,8 @@ class ImagebaseMain(QMainWindow):
 
     def imglist_widget(self):
         # 执行查询
-        conn = sqlite3.connect(win.choosed_basefile_dir)
-        cursor = conn.cursor()
+        self.conn = sqlite3.connect(win.choosed_basefile_dir)
+        cursor = self.conn.cursor()
         cursor.execute('''SELECT * FROM main ''')
         self.imgquery=cursor.fetchall()
         # 创建列表模型并填充数据
@@ -279,7 +280,7 @@ class ImagebaseMain(QMainWindow):
         #待施工
         pass
     
-    def baseRefresh(self):
+    def basedirRefresh(self):
         
         current_files_dir_list =[]
         for root,dirs,files in os.walk(self.base_dir):
@@ -291,17 +292,60 @@ class ImagebaseMain(QMainWindow):
         removed_files = set(old_files_dir_list).difference(set(current_files_dir_list))
         added_files = set(current_files_dir_list).difference(set(old_files_dir_list))
       
-        if [removed_files, added_files]:
-            print(added_files, removed_files)
-        else:
+        if removed_files:
+            print("检测到有以下图片不在目录下 是否从数据库中删除：", removed_files)
+        if added_files:
+            print("检测到以下图片新增在目录下 是否添加到目录中：", added_files)
+            self.baseupdate(added_files)
+        if False: # 两列表均为空
             print("无改变")
+
+    def baseupdate(self,added_files):
+        cursor = self.conn.cursor()
+        for i in added_files:
+            uselessvalue, file_extension = os.path.splitext(i)
+            if file_extension not in [".jpg",".png"]:
+                print("文件类型不受支持，跳过")
+                continue
+            filename = i.split('\\')[-1]
+
+            md5_hash = hashlib.md5()
+            with open(i, 'rb') as f:
+                while chunk := f.read(8192):
+                    md5_hash.update(chunk)
+            md5_value = md5_hash.hexdigest()
+
+            # 加载VGG16模型
+            vgg16 = VGG16(weights='imagenet', include_top=True)
+            # 提取特征
+            img = image.load_img(i, target_size=(224, 224))
+            img_array = image.img_to_array(img)
+            img_array = np.expand_dims(img_array, axis=0)
+            img_array = preprocess_input(img_array)
+            features = vgg16.predict(img_array)
+
+            # 存进SQL
+            cursor.execute(f'''
+                INSERT INTO main (hash,filename,filepath,feature) 
+                        VALUES (?,?,?,?);''', (md5_value,filename,i,features))
+
+
+        # 打印每一行
+        cursor.execute("SELECT * FROM main")
+        rows = cursor.fetchall()
+        for row in rows:
+            print(row)
+
+        cursor.close()
+        self.conn.commit()
+
 
     ###关闭当前窗口事件
 
     def closeEvent(self, event):
         # 在窗口关闭时触发的自定义函数
         win.close_current_window()
-        print("Window is closing. Execute your specific function here.")
+        print("ImagebaseMain_Window is closing.")
 
 class ImagePreviewer(QMainWindow):
     def __init__(self):
